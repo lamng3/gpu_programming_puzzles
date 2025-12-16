@@ -30,7 +30,7 @@
 
 ### 🧩 2D Operations
 
-* [x] [Matrix Addition Kernel](/triton/vector_add_kernel.py)
+* [x] [Matrix Addition Kernel](/triton/matrix_add_kernel.py)
 
 ### 🚚 Memory & Data Movement
 
