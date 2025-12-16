@@ -1,1 +1,1 @@
-# gpu_programming_puzzles
+# GPU Programming Puzzles
