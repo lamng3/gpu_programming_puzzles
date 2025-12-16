@@ -2,20 +2,20 @@
 
 ## 🎯 Table of Contents
 
-0. [References](#5-references)
-1. [Exercises](#6-exercises)
-2. [The Core Concept: SPMD](#1-the-core-concept-spmd)
-3. [Memory Paradigm: Load & Store](#2-memory-paradigm-load--store)
+1. [References](#1-references)
+2. [Exercises](#2-exercises)
+3. [The Core Concept: SPMD](#3-the-core-concept-spmd)
+4. [Memory Paradigm: Load & Store](#4-memory-paradigm-load--store)
 
    * [HBM vs. SRAM](#hbm-vs-sram)
-4. [The Paradigm Shift: Scalar vs. Blocked](#3-the-paradigm-shift-scalar-vs-blocked)
+5. [The Paradigm Shift: Scalar vs. Blocked](#5-the-paradigm-shift-scalar-vs-blocked)
 
    * [Why the change?](#why-the-change)
-5. [1D vs 2D Operations](#4-1d-vs-2d-operations)
+6. [1D vs 2D Operations](#6-1d-vs-2d-operations)
 
 ---
 
-## 0. 📚 References & Readings
+## 1. 📚 References & Readings
 
 * [Triton Documentation: Motivations](https://triton-lang.org/main/programming-guide/chapter-1/introduction.html)
 * **[LAM1991]** [The Cache Performance and Optimizations of Blocked Algorithms](https://suif.stanford.edu/papers/lam-asplos91.pdf)
@@ -23,7 +23,7 @@
 
 ---
 
-## 1. 💪 Exercises
+## 2. 💪 Exercises
 
 ### 🧮 Fundamentals
 
@@ -46,7 +46,7 @@
 
 ---
 
-## 2. The Core Concept: SPMD
+## 3. The Core Concept: SPMD
 
 The single **most important** concept in GPU programming is **SPMD** (Single Program, Multiple Data).
 
@@ -74,7 +74,7 @@ offsets = block_start + tl.arange(0, BLOCK_SIZE)
 
 ---
 
-## 3. Memory Paradigm: Load & Store
+## 4. Memory Paradigm: Load & Store
 
 Consider adding two 1D vectors `a` and `b`. In standard CPU Python, we iterate sequentially:
 
@@ -107,7 +107,7 @@ Minimizing trips to HBM is how you achieve peak performance.
 
 ---
 
-## 4. The Paradigm Shift: Scalar vs. Blocked
+## 5. The Paradigm Shift: Scalar vs. Blocked
 
 ### History Lesson 📜
 
@@ -134,7 +134,7 @@ A seminal 1991 paper by [M. Lam et al.](https://suif.stanford.edu/papers/lam-asp
 
 ---
 
-## 5. 1D vs 2D Operations
+## 6. 1D vs 2D Operations
 
 *coming soon*
 
