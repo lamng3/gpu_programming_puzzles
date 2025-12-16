@@ -1,6 +1,6 @@
 # 📝 GPU Programming Notes: Triton & Concepts
 
-## 🎯 Table of Contents
+## Table of Contents
 
 1. [References](#1-references)
 2. [Exercises](#2-exercises)
@@ -15,7 +15,7 @@
 
 ---
 
-## 1. 📚 References & Readings
+## 1. References
 
 * [Triton Documentation: Motivations](https://triton-lang.org/main/programming-guide/chapter-1/introduction.html)
 * **[LAM1991]** [The Cache Performance and Optimizations of Blocked Algorithms](https://suif.stanford.edu/papers/lam-asplos91.pdf)
@@ -23,7 +23,7 @@
 
 ---
 
-## 2. 💪 Exercises
+## 2. Exercises
 
 ### 🧮 Fundamentals
 
