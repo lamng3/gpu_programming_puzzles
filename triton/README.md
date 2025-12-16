@@ -6,12 +6,11 @@
 2. [Exercises](#2-exercises)
 3. [The Core Concept: SPMD](#3-the-core-concept-spmd)
 4. [Memory Paradigm: Load & Store](#4-memory-paradigm-load--store)
-
    * [HBM vs. SRAM](#hbm-vs-sram)
 5. [The Paradigm Shift: Scalar vs. Blocked](#5-the-paradigm-shift-scalar-vs-blocked)
-
    * [Why the change?](#why-the-change)
 6. [1D vs 2D Operations](#6-1d-vs-2d-operations)
+   * [The "Flattening" Trick](#why-this-works-the-flattening-trick)
 
 ---
 
@@ -136,7 +135,16 @@ A seminal 1991 paper by [M. Lam et al.](https://suif.stanford.edu/papers/lam-asp
 
 ## 6. 1D vs 2D Operations
 
-*coming soon*
+For **element-wise** operations, 2D Matrix addition is physically identical to 1D Vector addition.
+
+Even though we mathematically write a matrix as $N \times N$, computer memory is linear—it's just a long strip of bytes.
+
+### Why This Works? The "Flattening" Trick
+1. **Contiguous Memory:** Standard PyTorch tensors are stored in "Row-Major" order. 
+    - Row 0 is stored first, immediately followed by Row 1, then Row 2, etc.
+2. **No Gaps:** Because there are no gaps between the end of Row 0 and the start of Row 1, the computer sees one giant array of length $N^2$.
+
+*By treating it as 1D, you save yourself the headache of calculating row/column indices (pid_m, pid_n) and strides (stride_m, stride_n).*
 
 ---
 

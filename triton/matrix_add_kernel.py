@@ -19,7 +19,11 @@ def matrix_add_kernel(a_ptr, b_ptr, c_ptr, n_elements, BLOCK_SIZE: tl.constexpr)
     b = tl.load(b_ptr + offsets, mask=mask)
 
     output = a + b
-    c = tl.store(c_ptr + offsets, output, mask=mask)
+    tl.store(c_ptr + offsets, output, mask=mask)
+
+    # tl.store is an action (a void function), not a calculation
+    # assignment is not needed here
+    # c = tl.store(c_ptr + offsets, output, mask=mask)
 
 # a, b, c are tensors on the GPU
 def solve(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor, N: int):    
