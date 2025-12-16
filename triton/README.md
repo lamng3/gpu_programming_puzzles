@@ -1,51 +1,142 @@
-# Notes
+# 📝 GPU Programming Notes: Triton & Concepts
 
-## GPU Programming Concept
-Single **most important** concept in GPU programming:
-> SPMD: Single Program Multiple Data
+## 🎯 Table of Contents
 
-Example
+0. [References](#5-references)
+1. [Exercises](#6-exercises)
+2. [The Core Concept: SPMD](#1-the-core-concept-spmd)
+3. [Memory Paradigm: Load & Store](#2-memory-paradigm-load--store)
+
+   * [HBM vs. SRAM](#hbm-vs-sram)
+4. [The Paradigm Shift: Scalar vs. Blocked](#3-the-paradigm-shift-scalar-vs-blocked)
+
+   * [Why the change?](#why-the-change)
+5. [1D vs 2D Operations](#4-1d-vs-2d-operations)
+
+---
+
+## 0. 📚 References & Readings
+
+* [Triton Documentation: Motivations](https://triton-lang.org/main/programming-guide/chapter-1/introduction.html)
+* **[LAM1991]** [The Cache Performance and Optimizations of Blocked Algorithms](https://suif.stanford.edu/papers/lam-asplos91.pdf)
+* **[FlashAttention]** [Fast and Memory-Efficient Exact Attention with IO-Awareness](https://arxiv.org/abs/2205.14135)
+
+---
+
+## 1. 💪 Exercises
+
+### 🧮 Fundamentals
+
+* [x] [Vector Addition Kernel](/triton/vector_add_kernel.py)
+
+### 🧩 2D Operations
+
+* [x] [Matrix Addition Kernel](/triton/vector_add_kernel.py)
+
+### 🚚 Memory & Data Movement
+
+### 🔽 Reductions & Aggregations
+
+### 🧱 Sliding Windows & Convolutions
+
+### 🧠 Attention & Advanced Kernels
+
+* [ ] [Softmax Attention]()
+* [ ] [Linear Self-Attention]()
+
+---
+
+## 2. The Core Concept: SPMD
+
+The single **most important** concept in GPU programming is **SPMD** (Single Program, Multiple Data).
+
+> **Definition:** You write **one** program (kernel), and the GPU launches thousands of instances of that program simultaneously, each processing different data.
+
+### ⚡ Triton Boilerplate Example
+
+In Triton, we handle this parallelism by calculating offsets based on the Program ID (`pid`).
+
 ```python
+# 1. Get the unique ID for this specific program instance
 pid = tl.program_id(0)
+
+# 2. Skip ahead to find this instance's specific chunk of data
 block_start = pid * BLOCK_SIZE
+
+# 3. Create a vector of indices to grab specific items
 offsets = block_start + tl.arange(0, BLOCK_SIZE)
 ```
-These 3 lines are needed because Triton launches many identical copies of your Kernel at the same time. 
-- `triton.language.program_id(axis, semantic=None)`: Returns the id of the current program instance along the given axis
-- `block_start = pid * BLOCK_SIZE`: Kernel skips ahead to find its specific chunk
-- `offsets = block_start + tl.arange(0, BLOCK_SIZE)`: Kernel chooses which specific items to grab
 
-## Load and Store
-Take a look at an example of adding 2 1D vectors of same size `a` and `b`. In LeetCode, we would do this:
+**Breakdown:**
+
+* `tl.program_id(axis)`: Returns the ID of the current program instance (similar to a block index).
+* `offsets`: The list of indices telling this kernel instance exactly which data to touch.
+
+---
+
+## 3. Memory Paradigm: Load & Store
+
+Consider adding two 1D vectors `a` and `b`. In standard CPU Python, we iterate sequentially:
+
 ```python
+# CPU approach (Sequential)
 c = [0] * n
 for i in range(n):
     c[i] = a[i] + b[i]
 ```
-Now, we have GPU, yay go brrrr. So the idea idea behind the use of `tl.load` and `tl.store` is that we want to process the computation of c in parallel. 
 
-We can think GPU simply with 2 major components: 
-- High Bandwidth Memory (HBM)
-- Shared Memory (SRAM)
-SRAM is blazing fast, while HBM is huge and slow. The goal of FlashAttention and Triton is to load data from HBM **once**, and do tons of math on SRAM before storing it back.
+On a GPU, we want to process this in parallel (“GPU go brrr”).
+However, performance is dominated not by compute, but by **memory hierarchy**.
 
-### History Lesson
-Now some history lesson folks. Starting with Programming Model.
-- CUDA Programming Model is *Scalar Program, Blocked Threads* 
-- Triton Programming Model is *Blocked Program, Scalar Threads*
+---
 
-#### So why this change? 
-Well, a paper by [M.Lam et al.](https://suif.stanford.edu/papers/lam-asplos91.pdf) in 1991 set the main premise of the whole Triton project:
-> Programming paradigms based on **blocked algorithms** can facilitate the construction of high-performance compute kernels for neural networks.
+### HBM vs. SRAM
 
-**IMO** Data locality and shared memory:
-- Minimize expensive global memory accesses, allowing compilers to aggressively fuse operations
-- Enable efficient block-level processing, allowing compilers to aggressively optimize sparse operations by skipping unnecessary computations and maximizing memory bandwidth
+We can simplify the GPU into two major components:
 
-### See More
-- [Triton Motivations](https://triton-lang.org/main/programming-guide/chapter-1/introduction.html)
-- [[LAM1991] The Cache Performance and Optimizations of Blocked Algorithms](https://suif.stanford.edu/papers/lam-asplos91.pdf)
-- [FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://arxiv.org/abs/2205.14135)
+| Component | Type                    | Characteristics                    | Role in Optimization |
+| --------- | ----------------------- | ---------------------------------- | -------------------- |
+| **HBM**   | High Bandwidth Memory   | Huge capacity, high latency (slow) | Main storage         |
+| **SRAM**  | Shared / On-chip Memory | Tiny capacity, very low latency    | Scratchpad / cache   |
 
-### Exercise
-- [Vector Addition](/triton/vector_add_kernel.py)
+**The Golden Rule of Triton & FlashAttention:**
+
+> Load data from **HBM** → do as much math as possible in **SRAM** → store back to **HBM**
+
+Minimizing trips to HBM is how you achieve peak performance.
+
+---
+
+## 4. The Paradigm Shift: Scalar vs. Blocked
+
+### History Lesson 📜
+
+There is a fundamental difference between CUDA and Triton:
+
+| Feature     | **CUDA Model**                  | **Triton Model**                |
+| ----------- | ------------------------------- | ------------------------------- |
+| Granularity | Scalar Program, Blocked Threads | Blocked Program, Scalar Threads |
+| Focus       | Managing threads                | Managing blocks of data         |
+
+---
+
+### Why the change?
+
+A seminal 1991 paper by [M. Lam et al.](https://suif.stanford.edu/papers/lam-asplos91.pdf) established the foundation behind Triton:
+
+> *Programming paradigms based on **blocked algorithms** can facilitate the construction of high-performance compute kernels.*
+
+**Key advantages of blocked algorithms:**
+
+1. **Data locality** — keeps data in fast SRAM
+2. **Compiler optimization** — enables aggressive fusion
+3. **Sparsity handling** — skip unnecessary work at the block level
+
+---
+
+## 5. 1D vs 2D Operations
+
+*coming soon*
+
+---
+
