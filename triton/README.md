@@ -11,6 +11,7 @@
    * [Why the change?](#why-the-change)
 6. [1D vs 2D Operations](#6-1d-vs-2d-operations)
    * [The "Flattening" Trick](#why-this-works-the-flattening-trick)
+7. [Reverse Kernel](#7-reverse-kernel)   
 
 ---
 
@@ -42,6 +43,9 @@
 
 * [ ] [Softmax Attention]()
 * [ ] [Linear Self-Attention]()
+
+### Notes
+`tl.cdiv(x,div)` computes the ceiling divbison of `x` by `div`
 
 ---
 
@@ -147,4 +151,41 @@ Even though we mathematically write a matrix as $N \times N$, computer memory is
 *By treating it as 1D, you save yourself the headache of calculating row/column indices (pid_m, pid_n) and strides (stride_m, stride_n).*
 
 ---
+
+## 7. Reverse Kernel
+
+The task here is to reverse kernel in place. The idea is to select a midpoint and swap left and right portions.
+
+See code here [Reverse Kernel](/triton/reverse_kernel.py)
+
+### Program Analysis
+
+Let `pid = 2` and `N = 6000`
+- `block_start` = 2 * 1024 = 2048
+- `offsets` = 2048 + [0, 1, 2, ..., 1023] = [2048, 2049, ..., 3071]
+- `mask` = [True .. True(2999) False(3000) .. False] 
+- `mid = 3000` and `N-1 = 5999`
+- `left_offsets` = offsets = [2048, 2049, ..., 3071]
+- `right_offsets` = [3951, 3950, ..., 2928]
+
+```python
+# left and right pointers
+left_ptr = input_ptr + left_offsets
+right_ptr = input_ptr + right_offsets
+
+# load
+L = tl.load(left_ptr, mask=mask)
+R = tl.load(right_ptr, mask=mask)
+
+# store
+tl.store(left_ptr, R, mask=mask)
+tl.store(right_ptr, L, mask=mask)
+```
+We can see that the `right_offsets` is already flipping the memory. So when we load R, it will be flipped. And when we store L into `right_ptr`, L will also be flipped.
+
+### Would overlapping memory cause an issue in offset?
+As you can see, there might be some overlapping memory spaces between `left_offsets` and `right_offsets` in the example above (e.g. [2928 .. 3071]). So would this cause any issue?
+
+Thanks to safety mechanism in `mask`, it does not cause an issue, as we set `mask = offsets < N // 2`.
+
 
