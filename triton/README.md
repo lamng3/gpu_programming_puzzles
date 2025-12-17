@@ -11,7 +11,10 @@
    * [Why the change?](#why-the-change)
 6. [1D vs 2D Operations](#6-1d-vs-2d-operations)
    * [The "Flattening" Trick](#why-this-works-the-flattening-trick)
-7. [Reverse Kernel](#7-reverse-kernel)   
+7. [Reverse Kernel](#7-reverse-kernel)  
+8. [Atomic Add vs Store](#8-tlatomic_add-vs-tlstore) 
+    * [Map and Block Reduction Paradigm](#map-and-block-reduction-paradigm-maybe-allreduce)
+    * [Writing Better Kernel To Avoid Locking](#writing-better-kernel-to-avoid-locking)
 
 ---
 
@@ -188,4 +191,71 @@ As you can see, there might be some overlapping memory spaces between `left_offs
 
 Thanks to safety mechanism in `mask`, it does not cause an issue, as we set `mask = offsets < N // 2`.
 
+---
 
+## 8. `tl.atomic_add()` vs `tl.store()`
+
+The problem of interest in this case is counting the number of elements equal to K inside an array.
+
+See code here [Count Array Element](/triton/count_equal_kernel.py)
+
+The question is how we differentiate between `atomic_add()` and `store()`. Apparently, using `store()` would cause the problem to fail.
+
+### Overwriting and Accumulating
+This boils down to **Overwriting (Destructive)** and **Accumulating (Constructive)**. Since the grid launches multiple blocks (e.g. Block 0, Block 1, ...), they all run in parallel and try to write to the **same address** (`output_ptr`).
+
+1. `tl.store()` (The "Overwrite")
+- **Behavior:** "Whatever is at this address, delete it and put my value there."
+- With this, we create a **Race Condition**. Blocks will fight to write their value, and the "winner" is whoever finish last
+- **Scenario**:
+    - Block 0 find 5 matches
+    - Block 1 find 3 matches
+    - Total should be 8
+- However, in `tl.store()`, the work done by Block 0 is lost, and the final result is 3
+
+2. `tl.atomic_add()` (The "Accumulate")
+- **Behavior:** "Check what is currently at this address, add my value to it, and write the new total back. Do not let anyone else touch this address while I am doing this."
+- This locks memory address for a brief moment to ensure the math is correct.
+
+#### Will `tl.atomic_add()` kills parallelism as it requires **locking/serialization**?
+No, not significantly because I am doing a Block Reduction first.
+
+However, if used incorrectly, it will destroy the performance. 
+
+In my code, I am putting heavy lifting to summing part. So 99.9% of the work is in calculating. The remaining is to send 1 single request to global memory to add its partial result.
+
+#### The case when parallelism is killed with `tl.atomic_add()`
+```
+# BAD CODE: Kills Parallelism
+# Every single matching thread tries to lock the SAME memory address.
+match_k = tl.where((input == K), 1, 0)
+if match_k == 1:
+    tl.atomic_add(output_ptr, 1)
+```
+If we skipped the `tl.sum()` and tried to atomic add for every single match, we would kill parallelism.
+- **Scenario:** 1,000,000 elements.
+- **Total Atomics:** Up to 1,000,000.
+- **Result:** All 1 million threads get into a single file line to update that one memory address. The GPU effectively becomes a single-threaded CPU for the duration of those writes. This is called **High Contention**.
+
+#### Is it a norm in practice to use `tl.atomic_add()`?
+Yes, `tl.atomic_add()` is absolutely a norm in practice, but it is typically used as the **"Last Mile"** strategy.
+
+In high-performance GPU programming (CUDA/Triton), reduction usually follows a strict hierarchy. `tl.atomic_add ()` sits at the very top of that hierarchy.
+
+### Two-Pass Reduction (Split Accumulation)
+
+Tree Reduction or Two-Pass Reduction
+
+coming soon. avoiding atomic add. especially in flaoting point addition because it is non-associative.
+
+### High Contention (The "Hot Spot" Problem)
+
+coming soon. If grid is massive and they all hitting same address. Again, we use Two-Pass Reduction. More to this later.
+
+### Map and Block Reduction Paradigm (maybe AllReduce?)
+
+coming soon.
+
+### Writing Better Kernel To Avoid Locking
+
+coming soon.
