@@ -41,13 +41,9 @@ def matrix_multiplication_kernel(
         b_ptrs += stride_bn
 
     c_ptrs = c_ptr + offs_m[:,None] * stride_cm + offs_k[None,:] * stride_ck
+    mask = (offs_m[:,None] < M) & (offs_k[None,:] < K)
     
-    offs_cm = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
-    offs_ck = pid_k * BLOCK_SIZE_K + tl.arange(0, BLOCK_SIZE_K)
-    
-    c_mask = (offs_cm[:,None] < M) & (offs_ck[None,:] < K)
-    
-    tl.store(c_ptrs, acc, mask=c_mask)
+    tl.store(c_ptrs, acc, mask=mask)
 
 # a, b, c are tensors on the GPU
 def solve(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor, M: int, N: int, K: int):
