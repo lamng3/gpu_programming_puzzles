@@ -3,6 +3,10 @@ created by: Nathan N
 url: https://leetgpu.com/challenges/matrix-multiplication
 
 [TODO] revisit
+In this problem, we need to define BLOCK_SIZE to avoid "Straw" problem: 
+    GPU spends 99% on waiting for data and 1% on doing math
+To do so, we modify the kernel to process Blocks of data.
+Remember, in Triton, we general think in "Blocks of Data" rather than individual threads
 """
 import torch
 import triton
