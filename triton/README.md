@@ -15,6 +15,7 @@
 8. [Atomic Add vs Store](#8-tlatomic_add-vs-tlstore) 
     * [Map and Block Reduction Paradigm](#map-and-block-reduction-paradigm-maybe-allreduce)
     * [Writing Better Kernel To Avoid Locking](#writing-better-kernel-to-avoid-locking)
+9. [Stride In GPU](#9-stride-in-gpu)
 
 ---
 
@@ -259,3 +260,17 @@ coming soon.
 ### Writing Better Kernel To Avoid Locking
 
 coming soon.
+
+---
+
+## 9. Stride In GPU
+
+The GPU's memory (VRAM) is a single, giant, linear array of bytes (1D). However, we usally work with 2D matrices, 3D batches. 
+
+Thus, **stride** is the number of elements we must skip in the 1D linear memory to move **one step** along a specific dimension of vector.
+
+### Formula
+
+To find physical address of `A[i][j]` in a `M x N` matrix, Triton (and CUDA) uses this pointer arithmetic:
+
+$Address(i,j) = Base_ptr + (i \times Stride_M) + (j \times Stride_N)$
